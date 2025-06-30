@@ -39,4 +39,14 @@ public class CatalogoServiceImpl implements CatalogoService {
     }
 
 
+    @Override
+    public Flux<Skill> listarSkills() {
+        return skillRepository.findAll();
+    }
+
+    @Override
+    public Flux<Skill> findByNombreStartingWithIgnoreCase(String q) {
+        return skillRepository.findByNombreStartingWithIgnoreCase(q);
+    }
+
 }

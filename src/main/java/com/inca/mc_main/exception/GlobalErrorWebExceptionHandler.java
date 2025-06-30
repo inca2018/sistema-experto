@@ -1,5 +1,5 @@
 package com.inca.mc_main.exception;
-import com.inca.mc_main.exception.response.ErrorResponse;
+import com.inca.mc_main.exception.response.BasicResponse;
 import org.springframework.boot.autoconfigure.web.WebProperties;
 import org.springframework.boot.autoconfigure.web.reactive.error.AbstractErrorWebExceptionHandler;
 import org.springframework.boot.web.reactive.error.ErrorAttributes;
@@ -58,7 +58,7 @@ public class GlobalErrorWebExceptionHandler extends AbstractErrorWebExceptionHan
             message = "Parámetro inválido en la solicitud: " + ex.getReason();
         }
 
-        ErrorResponse<Object> response = ErrorResponse.<Object>builder()
+        BasicResponse<Object> response = BasicResponse.<Object>builder()
                 .status(status)
                 .code(code)
                 .message(message)

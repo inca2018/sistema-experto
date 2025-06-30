@@ -13,4 +13,7 @@ public interface CatalogoService {
 
     Flux<NivelExperiencia> listarNivelExperiencia();
 
+    Flux<Skill> listarSkills();
+
+    Flux<Skill> findByNombreStartingWithIgnoreCase(String q);
 }

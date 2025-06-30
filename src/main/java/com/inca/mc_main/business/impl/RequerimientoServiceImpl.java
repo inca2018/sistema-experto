@@ -255,6 +255,11 @@ public class RequerimientoServiceImpl implements RequerimientoService {
                 );
     }
 
+    @Override
+    public Mono<Long> contarTodosActivos() {
+        return requerimientoRepository.countByEstadoTrue();
+    }
+
 
     private Mono<List<Skill>> obtenerSkills(Integer idReq, String tipo) {
         return requerimientoSkillRepository.findByIdRequerimiento(idReq)

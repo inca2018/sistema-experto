@@ -21,4 +21,6 @@ public interface RequerimientoService {
     Flux<DetalleRequerimientoResponse> buscarPorTexto(String texto);
 
     Flux<DetalleRequerimientoResponse> listarTodosActivos();
+
+    Mono<Long> contarTodosActivos();
 }

@@ -14,5 +14,7 @@ public interface SkillRepository extends ReactiveCrudRepository<Skill, Integer> 
 
     Mono<Skill> findByNombreIgnoreCase(String nombre);
 
+    Flux<Skill> findByNombreContainingIgnoreCase(String nombreParte);
+    Flux<Skill> findByNombreStartingWithIgnoreCase(String q);
 
 }
