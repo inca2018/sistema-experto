@@ -1,0 +1,13 @@
+CREATE TABLE IF NOT EXISTS postulantes (
+    id CHAR(36) PRIMARY KEY,
+    nombre VARCHAR(255),
+    texto TEXT,
+    score DOUBLE
+);
+
+CREATE TABLE IF NOT EXISTS skills (
+    id CHAR(36) PRIMARY KEY,
+    postulante_id CHAR(36),
+    nombre VARCHAR(100),
+    FOREIGN KEY (postulante_id) REFERENCES postulantes(id) ON DELETE CASCADE
+);

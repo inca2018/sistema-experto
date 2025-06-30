@@ -1,0 +1,20 @@
+package com.inca.mc_main.repository;
+
+import com.inca.mc_main.entity.Skill;
+import org.springframework.data.r2dbc.repository.Query;
+import org.springframework.data.repository.reactive.ReactiveCrudRepository;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+
+import java.util.UUID;
+
+public interface SkillRepository extends ReactiveCrudRepository<Skill, String> {
+
+
+    Flux<com.inca.mc_main.entity.Skill> findByPostulanteId(UUID postulanteId);
+    @Query("SELECT * FROM skills WHERE nombre = :nombre")
+    Mono<com.inca.mc_main.entity.Skill> findByNombre(String nombre);
+    @Query("INSERT INTO skills (id, nombre, postulante_id) VALUES (:id, :nombre, :postulanteId)")
+    Mono<Void> insertarSkill(String id, String nombre, String postulanteId);
+}
+

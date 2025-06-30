@@ -1,0 +1,90 @@
+package com.inca.mc_main.npl;
+
+import com.inca.mc_main.business.OpenAiSkillExtractor;
+import com.inca.mc_main.entity.Skill;
+
+import com.inca.mc_main.repository.catalogo.SkillRepository;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+
+import java.util.*;
+import java.util.stream.Collectors;
+
+@Service
+@Slf4j
+public class NlpService {
+
+    private final SkillRepository skillRepo;
+    private final OpenAiSkillExtractor openAi;
+
+    public NlpService(SkillRepository skillRepo, OpenAiSkillExtractor openAi) {
+        this.skillRepo = skillRepo;
+        this.openAi = openAi;
+    }
+
+
+    /**
+     * Extrae palabras que podrían ser skills (capitalizadas) y devuelve las nuevas que no existen en la base de datos.
+     * No guarda nada aún.
+     */
+    public Mono<List<String>> extraerYAprenderSkills(String texto) {
+        log.info("📄 Iniciando extracción de skills desde texto (tamaño: {} caracteres)", texto.length());
+
+        return openAi.extraerSkillsDesdeTexto(texto)
+                .doOnNext(nuevas -> log.info("🔍 Skills detectadas por OpenAI: {}", nuevas))
+                .flatMap(nuevas -> skillRepo.findAll()
+                        .map(Skill::getNombre)
+                        .collectList()
+                        .doOnNext(existing -> log.info("📂 Skills existentes en la base de datos: {}", existing))
+                        .map(existing -> {
+                            List<String> filtradas = nuevas.stream()
+                                    .filter(skill -> !existing.contains(skill))
+                                    .collect(Collectors.toList());
+                            log.info("✅ Skills nuevas a registrar: {}", filtradas);
+                            return filtradas;
+                        })
+                );
+    }
+
+    /**
+     * Guarda las skills extraídas asociadas a un postulante.
+     * Solo guarda si no existe previamente por nombre.
+     */
+    public Flux<Skill> guardarSkills(UUID postulanteId, List<String> nombres) {
+        return Flux.fromIterable(nombres)
+                .flatMap(nombre ->
+                        skillRepo.findByNombre(nombre)
+                                .switchIfEmpty(Mono.defer(() -> {
+                                    UUID id = UUID.randomUUID();
+                                    Skill nueva = Skill.builder()
+                                            .id(id)
+                                            .nombre(nombre)
+                                            .postulanteId(postulanteId)
+                                            .build();
+                                    return skillRepo.insertarSkill(id.toString(), nombre, postulanteId.toString())
+                                            .thenReturn(nueva);
+                                }))
+                );
+    }
+
+
+    /**
+     * Devuelve las skills asociadas a un postulante.
+     */
+    public Flux<Skill> obtenerSkillsDePostulante(UUID postulanteId) {
+        return skillRepo.findByPostulanteId(postulanteId);
+    }
+
+    /**
+     * Calcula un score simple: porcentaje de requerimientos encontrados en las skills detectadas.
+     */
+    public Double calcularScore(List<String> requeridos, List<String> detectados) {
+        if (requeridos == null || requeridos.isEmpty()) return 0.0;
+        long match = requeridos.stream()
+                .filter(detectados::contains)
+                .count();
+        return (double) match / requeridos.size();
+    }
+}

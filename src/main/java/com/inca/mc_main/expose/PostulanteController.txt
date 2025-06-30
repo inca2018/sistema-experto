@@ -1,0 +1,37 @@
+package com.inca.mc_main.expose;
+
+import com.inca.mc_main.business.PostulanteService;
+import com.inca.mc_main.dto.PerfilRutaRequestDto;
+import com.inca.mc_main.entity.Postulante;
+import org.springframework.web.bind.annotation.*;
+import reactor.core.publisher.Flux;
+
+@RestController
+@RequestMapping("/api/candidatos")
+public class PostulanteController {
+
+    private final PostulanteService service;
+
+    public PostulanteController(PostulanteService service) {
+        this.service = service;
+    }
+
+    @PostMapping("/evaluar")
+    public Flux<Postulante> evaluar(@RequestBody PerfilRutaRequestDto request) {
+        return service
+                .leerCVsDesdeRuta(request.getRuta())
+                .flatMap(service::validarYProcesarPdf)
+                .collectList()
+                .flatMapMany(lista -> service.evaluar(request.getRequerimientos(), lista))
+                .collectList()
+                .doOnNext(postulantes -> {
+                    System.out.println("✅ Evaluación finalizada. Top postulantes por score:");
+                    postulantes.stream()
+                            .sorted((a, b) -> Double.compare(b.getScore(), a.getScore()))
+                            .limit(5)
+                            .forEach(p -> System.out.printf("🧑‍💼 %s → Score: %.2f%n", p.getNombre(), p.getScore()));
+                })
+                .flatMapMany(Flux::fromIterable);
+    }
+
+}

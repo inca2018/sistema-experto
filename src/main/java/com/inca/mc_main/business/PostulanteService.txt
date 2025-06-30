@@ -1,0 +1,125 @@
+package com.inca.mc_main.business;
+
+import com.inca.mc_main.entity.Postulante;
+import com.inca.mc_main.entity.Skill;
+import com.inca.mc_main.npl.NlpService;
+import com.inca.mc_main.repository.PostulanteRepository;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.text.PDFTextStripper;
+import org.springframework.r2dbc.core.DatabaseClient;
+import org.springframework.stereotype.Service;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.List;
+import java.util.UUID;
+import java.util.stream.BaseStream;
+
+@Service
+public class PostulanteService {
+
+    private final NlpService nlpService;
+    private final PostulanteRepository repository;
+    private final DatabaseClient db;
+
+    public PostulanteService(NlpService nlpService, PostulanteRepository repository, DatabaseClient db) {
+        this.nlpService = nlpService;
+        this.repository = repository;
+        this.db = db;
+    }
+
+    /**
+     * Lee todos los archivos PDF de una carpeta como Paths.
+     */
+    public Flux<Path> leerCVsDesdeRuta(String ruta) {
+        return Flux.defer(() -> Flux.using(
+                () -> Files.list(Paths.get(ruta)),
+                Flux::fromStream,
+                BaseStream::close
+        ).filter(path -> path.toString().toLowerCase().endsWith(".pdf")));
+    }
+
+    /**
+     * Valida y procesa un PDF en un objeto Postulante completo y persistido.
+     */
+    public Mono<Postulante> validarYProcesarPdf(Path path) {
+        return Mono.fromCallable(() -> {
+            try (PDDocument doc = PDDocument.load(path.toFile())) {
+                PDFTextStripper stripper = new PDFTextStripper();
+                stripper.setSuppressDuplicateOverlappingText(true);
+                String texto = stripper.getText(doc);
+                if (!contieneDatosBasicos(texto)) {
+                    throw new IllegalArgumentException("CV inválido o incompleto: " + path.getFileName());
+                }
+                return texto;
+            } catch (IOException e) {
+                throw new RuntimeException("Error leyendo el PDF: " + path, e);
+            }
+        }).flatMap(texto ->
+                nlpService.extraerYAprenderSkills(texto)
+                        .flatMap(detectadas -> {
+                            UUID id = UUID.randomUUID();
+                            Postulante postulante = Postulante.builder()
+                                    .id(id)
+                                    .nombre(path.getFileName().toString())
+                                    .texto(texto)
+                                    .score(0.0)
+                                    .build();
+
+                            System.out.println("➡️ Insertando postulante con ID: " + id);
+
+                            return insertPostulante(postulante) // 👈 insert forzado
+                                    .thenMany(nlpService.guardarSkills(id, detectadas))
+                                    .collectList()
+                                    .flatMap(skillsGuardadas -> {
+                                        postulante.setSkills(skillsGuardadas);
+                                        return Mono.just(postulante);
+                                    });
+                        })
+        );
+    }
+
+
+    private Mono<Void> insertPostulante(Postulante p) {
+        return db.sql("""
+            INSERT INTO postulantes (id, nombre, texto, score)
+            VALUES (:id, :nombre, :texto, :score)
+        """)
+                .bind("id", p.getId().toString())
+                .bind("nombre", p.getNombre())
+                .bind("texto", p.getTexto())
+                .bind("score", p.getScore())
+                .then();
+    }
+
+
+    /**
+     * Evalúa los postulantes calculando su score con base en los requerimientos.
+     */
+    public Flux<Postulante> evaluar(List<String> requeridos, List<Postulante> postulantes) {
+        return Flux.fromIterable(postulantes)
+                .flatMap(p -> nlpService.obtenerSkillsDePostulante(p.getId())
+                        .collectList()
+                        .flatMap(skills -> {
+                            p.setSkills(skills);
+                            double score = nlpService.calcularScore(
+                                    requeridos,
+                                    skills.stream().map(Skill::getNombre).toList()
+                            );
+                            p.setScore(score);
+                            return repository.save(p); // 🔄 ahora guardas el score evaluado
+                        }))
+                .sort((a, b) -> Double.compare(b.getScore(), a.getScore()));
+    }
+
+    /**
+     * Validación muy básica de contenido del CV.
+     */
+    private boolean contieneDatosBasicos(String texto) {
+        return true; // Mejora con validaciones reales si quieres
+    }
+}

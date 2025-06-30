@@ -1,0 +1,10 @@
+version: '3.8'
+
+services:
+  customers:
+    container_name: wss-main
+    build:
+      context: ./
+      dockerfile: Dockerfile.dev
+    ports:
+      - "8080:8080"

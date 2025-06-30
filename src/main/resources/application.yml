@@ -1,0 +1,7 @@
+spring:
+  r2dbc:
+    url: r2dbc:postgresql://localhost:5432/postgres
+    username: myuser
+    password: mypassword
+#  main:
+#    allow-bean-definition-overriding: true
