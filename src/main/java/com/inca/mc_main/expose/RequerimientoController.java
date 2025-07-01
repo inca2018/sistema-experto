@@ -103,12 +103,20 @@ public class RequerimientoController {
     @GetMapping("/buscar")
     public Mono<BasicResponse<ListadoResponse>> buscar(
             @RequestParam String texto,
-            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size) {
 
-        long skip = (long) page * size;
+        if (page < 1) {
+            return Mono.just(BasicResponse.<ListadoResponse>builder()
+                    .status(false)
+                    .code(400)
+                    .message("El número de página debe ser mayor o igual a 1")
+                    .build());
+        }
 
-        Mono<Long> totalMono = requerimientoService.contarTodosActivos(); // Debes implementar este método
+        long skip = (long) (page - 1) * size;
+
+        Mono<Long> totalMono = requerimientoService.contarTodosActivos();
         Mono<List<DetalleRequerimientoResponse>> datosMono = requerimientoService.buscarPorTexto(texto)
                 .skip(skip)
                 .take(size)
@@ -139,6 +147,7 @@ public class RequerimientoController {
                             .build();
                 });
     }
+
 
 
     @PutMapping("/{id}/estado")
