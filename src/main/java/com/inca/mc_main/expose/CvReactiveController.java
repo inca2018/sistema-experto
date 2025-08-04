@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.inca.mc_main.business.*;
 import com.inca.mc_main.dto.CvExtraccionDTO;
 import com.inca.mc_main.dto.response.ArchivoProcesadoResponse;
+import com.inca.mc_main.dto.response.ConteoOrigenDescripcionDTO;
 import com.inca.mc_main.dto.response.ResultadoProcesamiento;
 import com.inca.mc_main.dto.response.ResumenProcesamientoResponse;
 import com.inca.mc_main.exception.ApiException;
@@ -39,6 +40,23 @@ public class CvReactiveController {
     private final CvExtraccionService cvExtraccionService;
     private final PerfilProfesionalService perfilProfesionalService;
     private final SkillService skillService;
+
+
+    @GetMapping("/resumen-por-origen")
+    public Mono<ResponseEntity<BasicResponse<List<ConteoOrigenDescripcionDTO>>>> obtenerResumenPorOrigen(
+            @RequestParam("idRequerimiento") Integer idRequerimiento) {
+
+        return cvExtraccionService.obtenerConteoPorOrigenConDescripcion(idRequerimiento)
+                .collectList()
+                .map(lista -> ResponseEntity.ok(
+                        BasicResponse.<List<ConteoOrigenDescripcionDTO>>builder()
+                                .status(true)
+                                .code(200)
+                                .message("Resumen de postulantes por origen obtenido correctamente.")
+                                .data(lista)
+                                .build()
+                ));
+    }
 
     @PostMapping(value = "/procesar-masivo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public Mono<ResponseEntity<BasicResponse<ResumenProcesamientoResponse>>> procesarCVs(
@@ -126,7 +144,7 @@ public class CvReactiveController {
     }
 
 
-    private Mono<String> procesarCVTexto(String textoPlano, String idRequerimiento,String idOrigen) {
+    private Mono<String> procesarCVTexto(String textoPlano, String idRequerimiento, String idOrigen) {
         return openAiSkillExtractorService.extraerInformacionDesdeTextoCV(textoPlano)
                 .doOnNext(json -> log.info("JSON extraído desde OpenAI:\n{}", json.toPrettyString()))
                 .flatMap(json -> {
@@ -139,12 +157,22 @@ public class CvReactiveController {
                     dto.setIdRequerimiento(Integer.valueOf(idRequerimiento));
                     dto.setIdOrigenCV(Integer.valueOf(idOrigen));
 
-                    log.info("Guardando escaneo de CV : {}", dto);
+                    // === VALIDACIÓN SI YA EXISTE ===
+                    return cvExtraccionService.existsByNombreCompletoAndIdRequerimiento(dto.getNombreCompleto(), dto.getIdRequerimiento())
+                            .flatMap(existe -> {
+                                if (existe) {
+                                    log.warn("El postulante '{}' ya está registrado en el requerimiento {}", dto.getNombreCompleto(), dto.getIdRequerimiento());
+                                    return Mono.error(new ApiException(false, 409, "Postulante ya registrado para este proceso", null));
+                                }
 
-                    return cvExtraccionService.guardarExtraccion(dto)
-                            .then(perfilProfesionalService.procesarPerfilesDesdeDTO(dto))
-                            .then(skillService.procesarSkillsDesdeDTO(dto))
-                            .thenReturn("Procesado correctamente CV: " + dto.getNombreCompleto());
+                                // Si no existe, continúa con el procesamiento normal
+                                log.info("Guardando escaneo de CV : {}", dto);
+
+                                return cvExtraccionService.guardarExtraccion(dto)
+                                        .then(perfilProfesionalService.procesarPerfilesDesdeDTO(dto))
+                                        .then(skillService.procesarSkillsDesdeDTO(dto))
+                                        .thenReturn("Procesado correctamente CV: " + dto.getNombreCompleto());
+                            });
                 })
                 .onErrorMap(ex -> {
                     log.error("Error procesando CV: {}", ex.getMessage(), ex);
