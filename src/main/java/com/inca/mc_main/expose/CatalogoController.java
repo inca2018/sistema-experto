@@ -63,7 +63,6 @@ public class CatalogoController {
                         .data(data)
                         .build());
     }
-
     @GetMapping("/origen-cv")
     public Mono<BasicResponse<List<OrigenCv>>> listarOrigenes() {
         return service.listarOrigenes()
@@ -75,7 +74,6 @@ public class CatalogoController {
                         .data(data)
                         .build());
     }
-
     @GetMapping("/skill/search")
     public Mono<BasicResponse<List<Skill>>> searchSkills(@RequestParam String q) {
         return service.findByNombreStartingWithIgnoreCase(q)
@@ -87,5 +85,4 @@ public class CatalogoController {
                         .data(data)
                         .build());
     }
-
 }
