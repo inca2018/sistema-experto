@@ -14,7 +14,9 @@ public interface RequerimientoRepository extends ReactiveCrudRepository<Requerim
 
     Flux<Requerimiento> findByProcesoNot(String proceso);
 
+
     Flux<Requerimiento> findAllByEstadoTrue();
+
 
     Mono<Long> countByEstadoTrue();
 }

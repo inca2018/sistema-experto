@@ -1,6 +1,6 @@
 package com.inca.mc_main.npl;
 
-import com.inca.mc_main.business.OpenAiSkillExtractor;
+import com.inca.mc_main.business.OpenAiSkillExtractorService;
 import com.inca.mc_main.entity.Skill;
 
 import com.inca.mc_main.repository.catalogo.SkillRepository;

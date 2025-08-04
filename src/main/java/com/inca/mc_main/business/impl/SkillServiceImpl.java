@@ -1,6 +1,7 @@
 package com.inca.mc_main.business.impl;
 
 import com.inca.mc_main.business.SkillService;
+import com.inca.mc_main.dto.CvExtraccionDTO;
 import com.inca.mc_main.entity.catalogos.Skill;
 import com.inca.mc_main.repository.catalogo.SkillRepository;
 import com.inca.mc_main.util.Util;
@@ -32,6 +33,26 @@ public class SkillServiceImpl implements SkillService {
                         skillRepository.save(skill.withNombre(nombreNormalizado))
                                 .doOnSuccess(s -> log.info("Nuevo skill registrado: {}", s.getNombre()))
                 );
+    }
+
+
+    public Mono<Skill> insertarSiNoExiste(String nombre) {
+        return skillRepository.findByNombreIgnoreCase(nombre)
+                .switchIfEmpty(
+                        skillRepository.save(Skill.builder()
+                                        .nombre(nombre)
+                                        .build())
+                                .doOnNext(skill ->
+                                        log.info("Insertado nuevo Skill: {}", nombre)
+                                )
+                );
+    }
+
+    @Override
+    public Mono<Void> procesarSkillsDesdeDTO(CvExtraccionDTO dto) {
+        return Flux.fromIterable(dto.getSkillsTecnicos())
+                .flatMap(this::insertarSiNoExiste)
+                .then();
     }
 
 }

@@ -1,9 +1,11 @@
 package com.inca.mc_main.entity.catalogos;
 
+import lombok.Builder;
 import lombok.Data;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Table;
 
+@Builder
 @Data
 @Table("skill")
 public class Skill {

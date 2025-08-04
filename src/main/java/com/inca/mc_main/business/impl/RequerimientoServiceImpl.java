@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.List;
 
 
@@ -150,6 +151,7 @@ public class RequerimientoServiceImpl implements RequerimientoService {
     @Override
     public Flux<DetalleRequerimientoResponse> listarTodos() {
         return requerimientoRepository.findAll()
+                .sort(Comparator.comparing(Requerimiento::getId)) // orden ascendente por id
                 .flatMap(req ->
                         Mono.zip(
                                 empresaRepository.findById(req.getIdEmpresa()),
@@ -179,6 +181,7 @@ public class RequerimientoServiceImpl implements RequerimientoService {
         String query = texto.toLowerCase();
 
         return requerimientoRepository.findAll()
+               // .sort(Comparator.comparing(Requerimiento::getId))
                 .flatMap(req ->
                         Mono.zip(
                                 empresaRepository.findById(req.getIdEmpresa()),
@@ -230,6 +233,7 @@ public class RequerimientoServiceImpl implements RequerimientoService {
 
     @Override
     public Flux<DetalleRequerimientoResponse> listarTodosActivos() {
+
         return requerimientoRepository.findAllByEstadoTrue()
                 .flatMap(req ->
                         Mono.zip(

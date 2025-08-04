@@ -1,14 +1,12 @@
 package com.inca.mc_main.entity.catalogos;
 
-import lombok.Builder;
 import lombok.Data;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Table;
 
-@Builder
 @Data
-@Table("perfil_profesional")
-public class PerfilProfesional {
+@Table("origen_cv")
+public class OrigenCv {
     @Id
     private Integer id;
     private String descripcion;
